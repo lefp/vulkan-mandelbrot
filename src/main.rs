@@ -49,10 +49,11 @@ fn main() {
         .find(|dev|
             dev.properties().device_name.as_ref()
             .expect("encountered unnamed device")
+            // TODO for some reason shit goes weird on the Quadro card
             .to_ascii_lowercase().contains("intel")
         )
         .expect("failed to find specified device");
-    
+
     // get a queue family that supports graphics
     let queue_family =
         physical_device.queue_families()
@@ -88,12 +89,6 @@ fn main() {
         .expect("failed to create compute pipeline")
     );
 
-    // DEBUG
-    println!("{}", device.physical_device().properties()
-        .max_uniform_buffer_range.unwrap()
-    );
-    // return;
-
     // create descriptor set
     let layout = compute_pipeline.layout().descriptor_set_layout(0).unwrap();
     let set = Arc::new(
@@ -119,10 +114,15 @@ fn main() {
         .expect("failed to execute command buffer");
     finished.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
 
-    // read and print buffers
+    // read and print buffer
     print!("data:");
+    let mut i: u32 = 0;
     for x in data_buffer.read().expect("failed to read data buffer").iter() {
-        print!(" {}", x);
+        if i == 0 {
+            print!(" {}", x);
+            i = 500;
+        };
+        i -= 1;
     };
     println!();
 }
