@@ -9,25 +9,11 @@ use vulkano::pipeline::ComputePipeline;
 use vulkano::descriptor::descriptor_set::PersistentDescriptorSet;
 use vulkano::pipeline::ComputePipelineAbstract;
 use std::sync::Arc;
-
-mod cs { // cs probably stands for "compute shader"
-    vulkano_shaders::shader!{
-        ty: "compute",
-        src: "
-#version 450
-
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-
-layout(set = 0, binding = 0) buffer Data {
-    uint data[];
-} buf;
-
-void main() {
-    uint idx = gl_GlobalInvocationID.x;
-    buf.data[idx] *= 12;
-}"
-    }
-}
+use vulkano::format::Format;
+use vulkano::image::ImageDimensions;
+use vulkano::image::StorageImage;
+use vulkano::format::ClearValue;
+use image::{ImageBuffer, Rgba};
 
 fn main() {
     let instance =
@@ -50,15 +36,15 @@ fn main() {
             dev.properties().device_name.as_ref()
             .expect("encountered unnamed device")
             // TODO for some reason shit goes weird on the Quadro card
-            .to_ascii_lowercase().contains("intel")
+            .to_ascii_lowercase().contains("quadro")
         )
         .expect("failed to find specified device");
 
     // get a queue family that supports what we need (graphics/compute)
     let queue_family =
         physical_device.queue_families()
-        .find(|&q| q.supports_compute())
-        .expect("failed to find a compute queue family");
+        .find(|&q| q.supports_graphics())
+        .expect("failed to find a graphics queue family");
     
     // get a device and queue for the above queue family
     let (device, mut queues) =
@@ -71,40 +57,28 @@ fn main() {
         .expect("failed to create device");
     let queue = queues.next().unwrap();
 
-    // create data buffer
-    let data = 0..65536;
-    let data_buffer =
-        CpuAccessibleBuffer::from_iter(
-            device.clone(), BufferUsage::all(), false, data
-        )
-        .expect("failed to create source buffer");
-    
-    // load shader and create compute pipeline
-    let shader = cs::Shader::load(device.clone())
-        .expect("failed to create shader module");
-    let compute_pipeline = Arc::new(
-        ComputePipeline::new(
-            device.clone(), &shader.main_entry_point(), &(), None
-        )
-        .expect("failed to create compute pipeline")
-    );
-
-    // create descriptor set
-    let layout = compute_pipeline.layout().descriptor_set_layout(0).unwrap();
-    let set = Arc::new(
-        PersistentDescriptorSet::start(layout.clone())
-            .add_buffer(data_buffer.clone()).unwrap().build().unwrap()
-    );
-
-    // create command buffer
-    let mut builder =
-        AutoCommandBufferBuilder::primary(
-            device.clone(), queue.family(), CommandBufferUsage::OneTimeSubmit
-        )
-        .unwrap();
-    builder.dispatch(
-        [1024, 1, 1], compute_pipeline.clone(), set.clone(), (), None
+    // create image
+    let image = StorageImage::new(
+        device.clone(),
+        // TODO should array_layers be 4? (since we use RGBA)
+        ImageDimensions::Dim2d { width: 1024, height: 1024, array_layers: 1},
+        Format::R8G8B8A8Unorm, Some(queue.family())
     ).unwrap();
+    
+    // create buffer accessible by cpu (image buffers normally are not)
+    let buf = CpuAccessibleBuffer::from_iter(
+        device.clone(), BufferUsage::all(), false,
+        (0 .. 1024*1024*4).map(|_| 0u8)
+    ).expect("failed to create CpuAccessibleBuffer");
+    
+    // create command buffer
+    let mut builder = AutoCommandBufferBuilder::primary(
+        device.clone(), queue.family(), CommandBufferUsage::OneTimeSubmit
+    ).unwrap();
+    builder.clear_color_image(
+        image.clone(), ClearValue::Float([0.0, 0.0, 1.0, 1.0])
+    ).unwrap()
+        .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
     let command_buffer =
         builder.build().expect("failed to build command buffer");
     
@@ -114,13 +88,20 @@ fn main() {
         .expect("failed to execute command buffer");
     finished.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
 
+    // read and save reasulting image
+    let buffer_content = buf.read().unwrap();
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(
+        1024, 1024, &buffer_content[..]
+    ).unwrap();
+    image.save("image.png").unwrap();
+
     // read and print buffer
     print!("data:");
     let mut i: u32 = 0;
-    for x in data_buffer.read().expect("failed to read data buffer").iter() {
+    for x in buffer_content.iter() {
         if i == 0 {
             print!(" {}", x);
-            i = 500;
+            i = 1023;
         };
         i -= 1;
     };
