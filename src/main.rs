@@ -54,11 +54,11 @@ fn main() {
         )
         .expect("failed to find specified device");
 
-    // get a queue family that supports graphics
+    // get a queue family that supports what we need (graphics/compute)
     let queue_family =
         physical_device.queue_families()
-        .find(|&q| q.supports_graphics())
-        .expect("failed to find a graphical queue family");
+        .find(|&q| q.supports_compute())
+        .expect("failed to find a compute queue family");
     
     // get a device and queue for the above queue family
     let (device, mut queues) =
