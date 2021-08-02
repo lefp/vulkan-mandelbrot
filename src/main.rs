@@ -1,18 +1,15 @@
-use vulkano::instance::{Instance, InstanceExtensions, PhysicalDevice};
-use vulkano::Version;
-use vulkano::device::{Device, DeviceExtensions, Features};
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
-use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage,
-                              PrimaryCommandBuffer};
-use vulkano::sync::GpuFuture;
-use vulkano::pipeline::ComputePipeline;
-use vulkano::descriptor::descriptor_set::PersistentDescriptorSet;
-use vulkano::pipeline::ComputePipelineAbstract;
-use std::sync::Arc;
-use vulkano::format::Format;
-use vulkano::image::ImageDimensions;
-use vulkano::image::StorageImage;
-use vulkano::format::ClearValue;
+use vulkano::{
+    instance::{Instance, InstanceExtensions, PhysicalDevice},
+    Version,
+    device::{Device, DeviceExtensions, Features},
+    buffer::{BufferUsage, CpuAccessibleBuffer},
+    command_buffer::{
+        AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBuffer
+    },
+    sync::GpuFuture,
+    format::{Format, ClearValue},
+    image::{ImageDimensions, StorageImage},
+};
 use image::{ImageBuffer, Rgba};
 
 fn main() {
