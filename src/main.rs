@@ -31,7 +31,13 @@ layout(set = 0, binding = 0, rgba8) uniform writeonly image2D img;
 const float nR = 5.0;
 const float nG = 3.0;
 const float nB = 1.0;
-
+// Returns the value of the R, G, or B component of a color.
+// For `i` on interval [0, 1], the return value corresonds to an HSV color with:
+//     Hue        = i * 360 deg,
+//     Saturation = 1 (which is the maximum possible),
+//     Value      = 1 - i.
+// Whether it returns R, G, or B depends on the value of `n`; see the constants
+// defined above.
 float get_f(float n, float i) {
     float k = mod(n + 6.0*i, 6);
     return (1.0 - i) * (1.0 - max(0.0, min(k, min(4.0 - k, 1.0))));
@@ -56,11 +62,8 @@ void main() {
         }
     }
 
-    // R
     float R = get_f(nR, i);
-    // G
     float G = get_f(nG, i);
-    // B
     float B = get_f(nB, i);
 
     vec4 to_write = vec4(vec3(R, G, B), 1.0);
@@ -71,8 +74,8 @@ void main() {
 }
 
 fn main() {
-    const NPIXELS_DIM0: u32 = 1024;
-    const NPIXELS_DIM1: u32 = 1024;
+    const NPIXELS_DIM0: u32 = 2048;
+    const NPIXELS_DIM1: u32 = 2048;
 
     let instance =
         Instance::new(
@@ -155,6 +158,9 @@ fn main() {
     ).unwrap();
     builder
         .dispatch(
+            // `8` is the workgroup size, which must also be specified in the
+            // shader
+            // TODO play with the workgroup size, see what is roughly optimal
             [NPIXELS_DIM0 / 8, NPIXELS_DIM1 / 8, 1], 
             compute_pipeline.clone(), set.clone(), (), None
         ).unwrap()
