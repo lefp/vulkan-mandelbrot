@@ -38,8 +38,8 @@ const float nB = 1.0;
 //     Value      = 1 - i.
 // Whether it returns R, G, or B depends on the value of `n`; see the constants
 // defined above.
-float get_f(float n, float i) {
-    float k = mod(n + 6.0*i, 6);
+float get_f(const float n, const float i) {
+    const float k = mod(n + 6.0*i, 6);
     return (1.0 - i) * (1.0 - max(0.0, min(k, min(4.0 - k, 1.0))));
 }
 
