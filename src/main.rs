@@ -17,6 +17,7 @@ use vulkano::{
 };
 use std::sync::Arc;
 use image::{ImageBuffer, Rgba};
+use std::time::{Instant}; // DEBUG
 
 mod cs {
     vulkano_shaders::shader!{
@@ -27,20 +28,19 @@ mod cs {
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(set = 0, binding = 0, rgba8) uniform writeonly image2D img;
 
+// For `i` on interval [0, 1], returns an RGB value corresonding to an HSV color
+// with:
+//     Hue        = i * 360 deg,
+//     Saturation = 1 (which is the maximum possible),
+//     Value      = 1 - i.
 // https://web.archive.org/web/20210803061024/https://en.wikipedia.org/wiki/HSL_and_HSV#HSV_to_RGB_alternative
 const float nR = 5.0;
 const float nG = 3.0;
 const float nB = 1.0;
-// Returns the value of the R, G, or B component of a color.
-// For `i` on interval [0, 1], the return value corresonds to an HSV color with:
-//     Hue        = i * 360 deg,
-//     Saturation = 1 (which is the maximum possible),
-//     Value      = 1 - i.
-// Whether it returns R, G, or B depends on the value of `n`; see the constants
-// defined above.
-float get_f(const float n, const float i) {
-    const float k = mod(n + 6.0*i, 6);
-    return (1.0 - i) * (1.0 - max(0.0, min(k, min(4.0 - k, 1.0))));
+const vec3 n = vec3(nR, nG, nB);
+vec3 get_rgb(const float i) {
+    const vec3 k = mod(n + 6.0*i, 6);
+    return (1.0 - i) * (1.0 - max(vec3(0.0), min(k, min(4.0 - k, vec3(1.0)))));
 }
 
 void main() {
@@ -56,17 +56,13 @@ void main() {
             z.x * z.x - z.y * z.y + c.x,
             z.y * z.x + z.x * z.y + c.y
         );
-
+        
         if (length(z) > 4.0) {
             break;
         }
     }
-
-    float R = get_f(nR, i);
-    float G = get_f(nG, i);
-    float B = get_f(nB, i);
-
-    vec4 to_write = vec4(vec3(R, G, B), 1.0);
+    
+    vec4 to_write = vec4(get_rgb(i), 1.0);
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), to_write);
 }
 "
@@ -74,6 +70,7 @@ void main() {
 }
 
 fn main() {
+    let start = Instant::now(); // DEBUG
     const NPIXELS_DIM0: u32 = 2048;
     const NPIXELS_DIM1: u32 = 2048;
 
@@ -160,24 +157,28 @@ fn main() {
         .dispatch(
             // `8` is the workgroup size, which must also be specified in the
             // shader
-            // TODO play with the workgroup size, see what is roughly optimal
             [NPIXELS_DIM0 / 8, NPIXELS_DIM1 / 8, 1], 
             compute_pipeline.clone(), set.clone(), (), None
         ).unwrap()
         .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
     let command_buffer =
         builder.build().expect("failed to build command buffer");
+    println!("pre: {} ms", start.elapsed().as_nanos() as f64 / 1000_000.); // DEBUG
     
+    let start = Instant::now(); // DEBUG
     // submit command buffer and wait for execution to finish
     let finished =
         command_buffer.execute(queue.clone())
         .expect("failed to execute command buffer");
     finished.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
+    println!("shader exec: {} ms", start.elapsed().as_nanos() as f64 / 1000_000.); // DEBUG
 
+    let start = Instant::now(); // DEBUG
     // read and save resulting image
     let buffer_content = buf.read().unwrap();
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(
         NPIXELS_DIM0, NPIXELS_DIM1, &buffer_content[..]
     ).unwrap();
     image.save("image.png").unwrap();
+    println!("post: {} ms", start.elapsed().as_nanos() as f64 / 1000_000.); // DEBUG
 }
