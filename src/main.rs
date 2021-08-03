@@ -7,14 +7,13 @@ use vulkano::{
         AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBuffer
     },
     sync::GpuFuture,
-    format::{Format, ClearValue},
+    format::{Format},
     image::{
         ImageDimensions, StorageImage,
         view::ImageView,
     },
     pipeline::{ComputePipeline, ComputePipelineAbstract},
     descriptor::descriptor_set::PersistentDescriptorSet,
-    SafeDeref,
 };
 use std::sync::Arc;
 use image::{ImageBuffer, Rgba};
