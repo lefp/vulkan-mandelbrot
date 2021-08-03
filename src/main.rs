@@ -71,6 +71,9 @@ void main() {
 }
 
 fn main() {
+    const NPIXELS_DIM0: u32 = 1024;
+    const NPIXELS_DIM1: u32 = 1024;
+
     let instance =
         Instance::new(
             None, Version::V1_2, &InstanceExtensions::none(), None
@@ -115,7 +118,9 @@ fn main() {
     // create image
     let image = StorageImage::new(
         device.clone(),
-        ImageDimensions::Dim2d { width: 1024, height: 1024, array_layers: 1 },
+        ImageDimensions::Dim2d { 
+            width: NPIXELS_DIM0, height: NPIXELS_DIM1, array_layers: 1 
+        },
         Format::R8G8B8A8Unorm, Some(queue.family())
     ).unwrap();
     
@@ -141,7 +146,7 @@ fn main() {
     // create buffer accessible by cpu (image buffers normally are not)
     let buf = CpuAccessibleBuffer::from_iter(
         device.clone(), BufferUsage::all(), false,
-        (0 .. 1024*1024*4).map(|_| 0u8)
+        (0 .. NPIXELS_DIM0*NPIXELS_DIM1*4).map(|_| 0u8)
     ).expect("failed to create CpuAccessibleBuffer");
     
     // create command buffer
@@ -150,8 +155,8 @@ fn main() {
     ).unwrap();
     builder
         .dispatch(
-            [1024 / 8, 1024 / 8, 1], compute_pipeline.clone(), set.clone(), (),
-            None
+            [NPIXELS_DIM0 / 8, NPIXELS_DIM1 / 8, 1], 
+            compute_pipeline.clone(), set.clone(), (), None
         ).unwrap()
         .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
     let command_buffer =
@@ -166,19 +171,7 @@ fn main() {
     // read and save resulting image
     let buffer_content = buf.read().unwrap();
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(
-        1024, 1024, &buffer_content[..]
+        NPIXELS_DIM0, NPIXELS_DIM1, &buffer_content[..]
     ).unwrap();
     image.save("image.png").unwrap();
-
-    // read and print buffer
-    print!("data:");
-    let mut i: u32 = 0;
-    for x in buffer_content.iter() {
-        if i == 0 {
-            print!(" {}", x);
-            i = 1023;
-        };
-        i -= 1;
-    };
-    println!();
 }
