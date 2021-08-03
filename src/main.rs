@@ -66,7 +66,8 @@ void main() {
     float G = get_f(nG, i);
     float B = get_f(nB, i);
 
-    vec4 to_write = vec4(vec3(R, G, B), 1.0);
+    // R and B are swapped because that looks better
+    vec4 to_write = vec4(vec3(B, G, R), 1.0);
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), to_write);
 }
 "
