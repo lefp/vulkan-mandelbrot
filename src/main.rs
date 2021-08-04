@@ -157,7 +157,7 @@ fn main() {
         .dispatch(
             // `8` is the workgroup size, which must also be specified in the
             // shader
-            [NPIXELS_DIM0 / 8, NPIXELS_DIM1 / 8, 1], 
+            [NPIXELS_DIM0 / 8, NPIXELS_DIM1 / 8, 1],
             compute_pipeline.clone(), set.clone(), (), None
         ).unwrap()
         .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
