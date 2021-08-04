@@ -17,7 +17,6 @@ use vulkano::{
 };
 use std::sync::Arc;
 use image::{ImageBuffer, Rgba};
-use std::time::{Instant}; // DEBUG
 
 mod cs {
     vulkano_shaders::shader!{
@@ -70,7 +69,6 @@ void main() {
 }
 
 fn main() {
-    let start = Instant::now(); // DEBUG
     const NPIXELS_DIM0: u32 = 2048;
     const NPIXELS_DIM1: u32 = 2048;
 
@@ -93,7 +91,6 @@ fn main() {
         .find(|dev|
             dev.properties().device_name.as_ref()
             .expect("encountered unnamed device")
-            // for some reason compute shaders are jank on the Quadro
             .to_ascii_lowercase().contains("quadro")
         )
         .expect("failed to find specified device");
@@ -163,22 +160,17 @@ fn main() {
         .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
     let command_buffer =
         builder.build().expect("failed to build command buffer");
-    println!("pre: {} ms", start.elapsed().as_nanos() as f64 / 1000_000.); // DEBUG
     
-    let start = Instant::now(); // DEBUG
     // submit command buffer and wait for execution to finish
     let finished =
         command_buffer.execute(queue.clone())
         .expect("failed to execute command buffer");
     finished.then_signal_fence_and_flush().unwrap().wait(None).unwrap();
-    println!("shader exec: {} ms", start.elapsed().as_nanos() as f64 / 1000_000.); // DEBUG
 
-    let start = Instant::now(); // DEBUG
     // read and save resulting image
     let buffer_content = buf.read().unwrap();
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(
         NPIXELS_DIM0, NPIXELS_DIM1, &buffer_content[..]
     ).unwrap();
     image.save("image.png").unwrap();
-    println!("post: {} ms", start.elapsed().as_nanos() as f64 / 1000_000.); // DEBUG
 }
